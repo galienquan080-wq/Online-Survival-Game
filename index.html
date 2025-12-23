@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Henry Survival .io - Multiplayer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
+<style>
+*{box-sizing:border-box;}
+body{margin:0;overflow:hidden;background:#1a1a1a;color:white;font-family:'Segoe UI',Arial,sans-serif;}
+
+/* MENU */
+#menu{
+  position:fixed;inset:0;
+  background:linear-gradient(135deg,#1e3c72,#2a5298);
+  display:flex;align-items:center;justify-content:center;
+  z-index:100;
+}
+.menu-box{
+  background:rgba(0,0,0,0.8);
+  padding:40px;border-radius:15px;
+  border:3px solid #4a9eff;
+  box-shadow:0 0 30px rgba(74,158,255,0.5);
+  max-width:450px;width:90%;
+}
+.menu-box h1{
+  margin:0 0 10px 0;font-size:42px;
+  text-align:center;
+  background:linear-gradient(90deg,#4a9eff,#00ffff);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  text-shadow:0 0 20px rgba(74,158,255,0.6);
+}
+.menu-box .subtitle{
+  text-align:center;color:#aaa;
+  margin:0 0 30px 0;font-size:14px;
+}
+.menu-box input{
+  width:100%;padding:14px;font-size:16px;
+  margin:12px 0;background:#222;color:white;
+  border:2px solid #555;border-radius:8px;
+  transition:border 0.3s;
+}
+.menu-box input:focus{
+  outline:none;border-color:#4a9eff;
+}
+.menu-box button{
+  width:100%;padding:16px;font-size:18px;
+  margin:10px 0;background:#4a9eff;
+  color:white;border:none;border-radius:8px;
+  cursor:pointer;font-weight:bold;
+  transition:all 0.3s;
+}
+.menu-box button:hover{
+  background:#3a8eef;
+  transform:translateY(-2px);
+  box-shadow:0 5px 15px rgba(74,158,255,0.4);
+}
+.menu-box button:active{
+  transform:translateY(0);
+}
+#roomInfo{
+  margin-top:20px;padding:15px;
+  background:rgba(74,158,255,0.2);
+  border-radius:8px;font-size:14px;
+  text-align:center;line-height:1.6;
+}
+#roomInfo .room-id{
+  font-size:20px;font-weight:bold;
+  color:#00ffff;letter-spacing:2px;
+  padding:8px;background:#222;
+  border-radius:5px;margin:10px 0;
+  user-select:all;
+}
+
+/* GAME CANVAS */
+#gameCanvas{
+  background:#0d1117;display:none;
+}
+
+/* HUD */
+#hud{
+  position:absolute;top:15px;left:15px;
+  font-size:16px;background:rgba(0,0,0,0.8);
+  padding:15px 20px;border-radius:10px;
+  border:2px solid #4a9eff;display:none;
+  line-height:1.8;
+}
+#hud div{margin:5px 0;}
+
+/* COMBINED STATS */
+#statsPanel{
+  position:absolute;top:15px;left:15px;
+  background:rgba(0,0,0,0.8);
+  padding:15px;border-radius:10px;
+  border:2px solid #4a9eff;display:none;
+  min-width:300px;
+}
+
+/* INVENTORY */
+#inventory{
+  position:absolute;right:15px;bottom:15px;
+  display:none;grid-template-columns:repeat(5,60px);
+  grid-template-rows:repeat(3,60px);gap:5px;
+  background:rgba(0,0,0,0.8);padding:10px;
+  border-radius:10px;border:2px solid #4a9eff;
+}
+.invSlot{
+  width:60px;height:60px;background:#222;
+  border:2px solid #555;border-radius:5px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:all 0.2s;
+}
+.invSlot:hover{
+  border-color:#4a9eff;
+  transform:scale(1.05);
+}
+.invSlot.selected{
+  border-color:#0f0;box-shadow:0 0 10px #0f0;
+}
+
+/* CRAFTING */
+#crafting{
+  position:absolute;right:15px;top:15px;
+  display:none;grid-template-columns:repeat(5,50px);
+  grid-template-rows:repeat(5,50px);gap:4px;
+  background:rgba(0,0,0,0.8);padding:10px;
+  border-radius:10px;border:2px solid #ff9500;
+}
+.craftSlot{
+  width:50px;height:50px;background:#2a2a2a;
+  border:1px solid #666;border-radius:4px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:background 0.2s;
+}
+.craftSlot:hover{background:#3a3a3a;}
+
+#craftBtn{
+  position:absolute;right:15px;
+  top:calc(15px + 5*50px + 30px);
+  padding:12px 25px;background:#ff9500;
+  border:none;border-radius:8px;
+  cursor:pointer;font-weight:bold;
+  font-size:16px;display:none;
+  transition:all 0.3s;
+}
+#craftBtn:hover{
+  background:#ff8500;
+  box-shadow:0 5px 15px rgba(255,149,0,0.4);
+}
+
+/* POPUP */
+#popup{
+  position:fixed;left:50%;top:50%;
+  transform:translate(-50%,-50%);
+  padding:25px 40px;background:rgba(0,0,0,0.95);
+  border:3px solid #4a9eff;border-radius:10px;
+  display:none;font-size:20px;
+  box-shadow:0 0 30px rgba(74,158,255,0.6);
+}
+
+/* HEALTH BAR */
+#healthbar{
+  position:absolute;bottom:15px;left:15px;
+  width:250px;height:25px;
+  border:2px solid #fff;background:#330000;
+  border-radius:5px;overflow:hidden;display:none;
+}
+#healthfill{
+  height:100%;background:linear-gradient(90deg,#ff3030,#ff6060);
+  transition:width 0.3s;
+}
+
+/* PLAYER LIST */
+#playerList{
+  position:absolute;top:55px;left:15px;
+  background:rgba(0,0,0,0.8);padding:12px 18px;
+  border-radius:10px;border:2px solid #4a9eff;
+  display:none;max-height:200px;overflow-y:auto;
+  min-width:150px;
+}
+#playerList div{
+  margin:5px 0;font-size:14px;
+}
+
+/* CONNECTION STATUS */
+#connectionStatus{
+  position:absolute;top:15px;left:50%;
+  transform:translateX(-50%);
+  padding:8px 16px;background:rgba(0,0,0,0.8);
+  border-radius:20px;border:2px solid #555;
+  font-size:14px;display:none;
+}
+#connectionStatus.connected{border-color:#0f0;}
+#connectionStatus.connecting{border-color:#ff0;}
+#connectionStatus.disconnected{border-color:#f00;}
+</style>
+</head>
+
+<body>
+<!-- MENU -->
+<div id="menu">
+  <div class="menu-box">
+    <h1>🎮 HENRY SURVIVAL</h1>
+    <p class="subtitle">Multiplayer Survival Game</p>
+    
+    <input id="nameInput" type="text" placeholder="✏️ Nhập tên của bạn..." maxlength="12" autocomplete="off">
+    
+    <button id="hostBtn">🌟 TẠO PHÒNG MỚI</button>
+    <button id="joinBtn">🔗 THAM GIA PHÒNG</button>
+    
+    <div id="joinSection" style="display:none;">
+      <input id="roomInput" type="text" placeholder="🔑 Nhập Room ID..." autocomplete="off">
+      <button id="connectBtn">▶️ KẾT NỐI</button>
+    </div>
+    
+    <div id="roomInfo"></div>
+  </div>
+</div>
+
+<canvas id="gameCanvas" width="1200" height="700"></canvas>
+
+<div id="connectionStatus">🔄 Đang kết nối...</div>
+<div id="hud"></div>
+<div id="inventory"></div>
+<div id="crafting"></div>
+<div id="craftBtn">⚒️ CHẾ TẠO</div>
+<div id="popup"></div>
+<div id="healthbar"><div id="healthfill"></div></div>
+<div id="playerList"></div>
+
+<script>
+/*===========================================
+     CONFIG & GLOBALS
+===========================================*/
+const MAP_WIDTH=5000, MAP_HEIGHT=4000;
+const canvas=document.getElementById("gameCanvas");
+const ctx=canvas.getContext("2d");
+
+let peer=null, isHost=false, myId=null;
+let connections={}, otherPlayers={};
+let gameStarted=false;
+
+const player={
+  x:MAP_WIDTH/2, y:MAP_HEIGHT/2,
+  w:32, h:32, speed:4,
+  hp:100, maxhp:100,
+  resources:{Wood:0,Stone:0,Meat:0},
+  selectedItem:null,
+  attackCooldown:0,
+  name:"", color:"#ffeb3b"
+};
+
+let resources=[], enemies=[], turrets=[];
+const cam={x:0,y:0};
+const keys={};
+
+/*===========================================
+     WORLD GENERATION
+===========================================*/
+function initWorld(){
+  resources=[];
+  for(let i=0;i<80;i++){
+    resources.push({
+      id:"res_"+i,
+      x:Math.random()*(MAP_WIDTH-100)+50,
+      y:Math.random()*(MAP_HEIGHT-100)+50,
+      type:i%2==0?"Tree":"Rock",
+      size:60, hp:i%2==0?5:8
+    });
+  }
+  
+  enemies=[];
+  for(let i=0;i<25;i++){
+    enemies.push({
+      id:"wolf_"+i,
+      x:Math.random()*(MAP_WIDTH-100)+50,
+      y:Math.random()*(MAP_HEIGHT-100)+50,
+      size:50, hp:20, speed:2, atkCD:0
+    });
+  }
+}
+
+/*===========================================
+     INVENTORY SYSTEM
+===========================================*/
+let inventory=new Array(15).fill(null);
+const invDiv=document.getElementById("inventory");
+
+function drawItemIcon(ctx,type,x,y,s){
+  if(type=="Wood"){
+    ctx.fillStyle="#8b5a2b";
+    ctx.fillRect(x+5,y+5,s-10,s-10);
+    ctx.strokeStyle="#654321";
+    ctx.lineWidth=2;
+    ctx.strokeRect(x+5,y+5,s-10,s-10);
+  }
+  else if(type=="Stone"){
+    ctx.fillStyle="#808080";
+    ctx.beginPath();
+    ctx.arc(x+s/2,y+s/2,s/2-5,0,Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle="#555";
+    ctx.lineWidth=2;
+    ctx.stroke();
+  }
+  else if(type=="Meat"){
+    ctx.fillStyle="#ff4444";
+    ctx.fillRect(x+8,y+8,s-16,s*0.6);
+  }
+  else if(type=="Turret"){
+    ctx.fillStyle="#2196f3";
+    ctx.fillRect(x+5,y+5,s-10,s-10);
+    ctx.fillStyle="#fff";
+    ctx.fillRect(x+s/2-3,y+10,6,s-20);
+  }
+}
+
+function refreshInventory(){
+  inventory.forEach((item,i)=>{
+    let d=invDiv.children[i];
+    d.innerHTML="";
+    if(player.selectedItem==i){
+      d.classList.add("selected");
+    }else{
+      d.classList.remove("selected");
+    }
+    if(item){
+      let c=document.createElement("canvas");
+      c.width=48; c.height=48;
+      let ct=c.getContext("2d");
+      drawItemIcon(ct,item,0,0,48);
+      d.appendChild(c);
+    }
+  });
+}
+
+invDiv.innerHTML="";
+for(let i=0;i<15;i++){
+  let d=document.createElement("div");
+  d.className="invSlot";
+  d.onclick=()=>{
+    player.selectedItem=(player.selectedItem==i)?null:i;
+    refreshInventory();
+  };
+  invDiv.appendChild(d);
+}
+
+/*===========================================
+     CRAFTING SYSTEM
+===========================================*/
+let craftGrid=new Array(25).fill(null);
+const craftDiv=document.getElementById("crafting");
+
+craftDiv.innerHTML="";
+for(let i=0;i<25;i++){
+  let d=document.createElement("div");
+  d.className="craftSlot";
+  d.onclick=()=>placeCraftItem(i);
+  craftDiv.appendChild(d);
+}
+
+function refreshCraft(){
+  craftGrid.forEach((item,i)=>{
+    let d=craftDiv.children[i];
+    d.innerHTML="";
+    if(item){
+      let c=document.createElement("canvas");
+      c.width=40; c.height=40;
+      let ct=c.getContext("2d");
+      drawItemIcon(ct,item,0,0,40);
+      d.appendChild(c);
+    }
+  });
+}
+
+function placeCraftItem(idx){
+  if(player.selectedItem==null) return;
+  let item=inventory[player.selectedItem];
+  if(!item) return;
+  
+  craftGrid[idx]=item;
+  inventory[player.selectedItem]=null;
+  player.selectedItem=null;
+  refreshInventory();
+  refreshCraft();
+}
+
+document.getElementById("craftBtn").onclick=()=>{
+  let wood=craftGrid.filter(x=>x=="Wood").length;
+  let stone=craftGrid.filter(x=>x=="Stone").length;
+  
+  if(wood>=2 && stone>=1){
+    addToInventory("Turret");
+    craftGrid.fill(null);
+    refreshCraft();
+    popupMsg("✅ Chế tạo Turret thành công!");
+  }else{
+    popupMsg("❌ Cần: 2 Wood + 1 Stone");
+  }
+};
+
+function addToInventory(item){
+  for(let i=0;i<15;i++){
+    if(!inventory[i]){
+      inventory[i]=item;
+      refreshInventory();
+      return true;
+    }
+  }
+  popupMsg("⚠️ Túi đồ đầy!");
+  return false;
+}
+
+/*===========================================
+     POPUP
+===========================================*/
+function popupMsg(txt){
+  let p=document.getElementById("popup");
+  p.innerText=txt;
+  p.style.display="block";
+  setTimeout(()=>p.style.display="none",2000);
+}
+
+/*===========================================
+     INPUT
+===========================================*/
+document.addEventListener("keydown",e=>{
+  keys[e.key.toLowerCase()]=true;
+  if(e.key==" ")e.preventDefault();
+});
+document.addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
+
+canvas.addEventListener("contextmenu",e=>{
+  e.preventDefault();
+  playerAttack();
+});
+
+// LEFT CLICK để đặt turret
+canvas.addEventListener("click",e=>{
+  if(e.button===0 && player.selectedItem!=null && inventory[player.selectedItem]=="Turret"){
+    turrets.push({
+      x:player.x, y:player.y,
+      size:60, owner:myId
+    });
+    inventory[player.selectedItem]=null;
+    player.selectedItem=null;
+    refreshInventory();
+    
+    broadcast({
+      type:"turretPlace",
+      x:player.x, y:player.y
+    });
+  }
+});
+
+/*===========================================
+     COMBAT
+===========================================*/
+function playerAttack(){
+  if(player.attackCooldown>0) return;
+  player.attackCooldown=20;
+  
+  let range=100;
+  
+  resources.forEach((r,i)=>{
+    if(Math.hypot(player.x-r.x,player.y-r.y)<range){
+      r.hp--;
+      if(r.hp<=0){
+        if(r.type=="Tree") player.resources.Wood+=3;
+        else player.resources.Stone+=3;
+        
+        if(isHost){
+          broadcast({type:"resDestroy",id:r.id,resType:r.type});
+        }
+        resources.splice(i,1);
+      }
+    }
+  });
+  
+  enemies.forEach((e,i)=>{
+    if(Math.hypot(player.x-e.x,player.y-e.y)<range){
+      e.hp-=5;
+      if(e.hp<=0){
+        player.resources.Meat+=3;
+        
+        if(isHost){
+          broadcast({type:"enemyKill",id:e.id});
+        }
+        enemies.splice(i,1);
+      }
+    }
+  });
+}
+
+/*===========================================
+     ENEMY AI (Attack all players)
+===========================================*/
+function updateEnemies(){
+  enemies.forEach(e=>{
+    // Tìm player gần nhất
+    let nearestDist = Math.hypot(player.x-e.x, player.y-e.y);
+    let targetX = player.x;
+    let targetY = player.y;
+    
+    // Kiểm tra các player khác
+    Object.values(otherPlayers).forEach(p=>{
+      if(!p.x) return;
+      let dist = Math.hypot(p.x-e.x, p.y-e.y);
+      if(dist < nearestDist){
+        nearestDist = dist;
+        targetX = p.x;
+        targetY = p.y;
+      }
+    });
+    
+    let dx = targetX - e.x;
+    let dy = targetY - e.y;
+    
+    // Đuổi theo
+    if(nearestDist < 350){
+      e.x += e.speed * (dx/nearestDist);
+      e.y += e.speed * (dy/nearestDist);
+    }
+    
+    // Tấn công player hiện tại nếu đủ gần
+    let myDist = Math.hypot(player.x-e.x, player.y-e.y);
+    if(myDist < 45 && e.atkCD <= 0){
+      player.hp -= 5;
+      e.atkCD = 50;
+    }
+    
+    e.atkCD--;
+  });
+  
+  // Host broadcast vị trí enemies
+  if(isHost){
+    broadcast({
+      type:"enemyPos",
+      enemies: enemies.map(e=>({id:e.id, x:e.x, y:e.y, hp:e.hp, atkCD:e.atkCD}))
+    });
+  }
+}
+
+/*===========================================
+     UPDATE LOOP
+===========================================*/
+function update(){
+  if(!gameStarted) return;
+  
+  if(keys["w"]) player.y-=player.speed;
+  if(keys["s"]) player.y+=player.speed;
+  if(keys["a"]) player.x-=player.speed;
+  if(keys["d"]) player.x+=player.speed;
+  
+  player.x=Math.max(50,Math.min(MAP_WIDTH-50,player.x));
+  player.y=Math.max(50,Math.min(MAP_HEIGHT-50,player.y));
+  
+  cam.x=player.x-canvas.width/2;
+  cam.y=player.y-canvas.height/2;
+  cam.x=Math.max(0,Math.min(MAP_WIDTH-canvas.width,cam.x));
+  cam.y=Math.max(0,Math.min(MAP_HEIGHT-canvas.height,cam.y));
+  
+  player.attackCooldown=Math.max(0,player.attackCooldown-1);
+  
+  updateEnemies();
+  
+  document.getElementById("healthfill").style.width=
+    (player.hp/player.maxhp*100)+"%";
+  
+  // Broadcast position
+  broadcast({
+    type:"move",
+    x:player.x, y:player.y,
+    hp:player.hp
+  });
+}
+
+/*===========================================
+     DRAW LOOP
+===========================================*/
+function draw(){
+  if(!gameStarted) return;
+  
+  ctx.fillStyle="#0d1117";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  
+  // Grid
+  ctx.strokeStyle="#1a1a1a";
+  ctx.lineWidth=1;
+  for(let x=0;x<MAP_WIDTH;x+=100){
+    ctx.beginPath();
+    ctx.moveTo(x-cam.x,0);
+    ctx.lineTo(x-cam.x,canvas.height);
+    ctx.stroke();
+  }
+  for(let y=0;y<MAP_HEIGHT;y+=100){
+    ctx.beginPath();
+    ctx.moveTo(0,y-cam.y);
+    ctx.lineTo(canvas.width,y-cam.y);
+    ctx.stroke();
+  }
+  
+  // Resources
+  resources.forEach(r=>{
+    let sx=r.x-cam.x, sy=r.y-cam.y;
+    if(r.type=="Tree"){
+      ctx.fillStyle="#2d5016";
+      ctx.fillRect(sx-30,sy-30,60,60);
+      ctx.fillStyle="#1a3010";
+      ctx.fillRect(sx-5,sy-40,10,80);
+    }else{
+      ctx.fillStyle="#6b6b6b";
+      ctx.beginPath();
+      ctx.arc(sx,sy,30,0,Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle="#505050";
+      ctx.lineWidth=3;
+      ctx.stroke();
+    }
+  });
+  
+  // Enemies
+  ctx.fillStyle="#b33";
+  enemies.forEach(e=>{
+    let sx=e.x-cam.x, sy=e.y-cam.y;
+    ctx.fillRect(sx-25,sy-25,50,50);
+    ctx.fillStyle="#fff";
+    ctx.font="12px Arial";
+    ctx.fillText("🐺",sx-8,sy+5);
+  });
+  
+  // Turrets
+  ctx.fillStyle="#2196f3";
+  turrets.forEach(t=>{
+    let sx=t.x-cam.x, sy=t.y-cam.y;
+    ctx.fillRect(sx-30,sy-30,60,60);
+    ctx.fillStyle="#fff";
+    ctx.fillRect(sx-4,sy-35,8,70);
+  });
+  
+  // Other players
+  Object.entries(otherPlayers).forEach(([id,p])=>{
+    if(!p.x) return;
+    let sx=p.x-cam.x, sy=p.y-cam.y;
+    ctx.fillStyle=p.color||"cyan";
+    ctx.fillRect(sx-16,sy-16,32,32);
+    ctx.fillStyle="white";
+    ctx.font="bold 14px Arial";
+    ctx.textAlign="center";
+    ctx.fillText(p.name||"Player",sx,sy-25);
+  });
+  
+  // My player
+  ctx.fillStyle=player.color;
+  ctx.fillRect(player.x-cam.x-16,player.y-cam.y-16,32,32);
+  ctx.fillStyle="white";
+  ctx.font="bold 14px Arial";
+  ctx.textAlign="center";
+  ctx.fillText(player.name,player.x-cam.x,player.y-cam.y-25);
+  
+  // HUD - Combined with player list
+  let hudContent = `
+    <div style="border-bottom:2px solid #4a9eff;padding-bottom:10px;margin-bottom:10px;">
+      <div>❤️ HP: ${player.hp}/${player.maxhp}</div>
+      <div>🪵 Wood: ${player.resources.Wood}</div>
+      <div>🪨 Stone: ${player.resources.Stone}</div>
+      <div>🥩 Meat: ${player.resources.Meat}</div>
+    </div>
+    <div><strong>👥 PLAYERS (${1+Object.keys(otherPlayers).length})</strong></div>
+    <div style="color:#ffeb3b;">🟡 ${player.name} (You)</div>
+  `;
+  
+  Object.values(otherPlayers).forEach(p=>{
+    hudContent+=`<div style="color:#00bcd4;">🔵 ${p.name||"Player"}</div>`;
+  });
+  
+  document.getElementById("hud").innerHTML = hudContent;
+}
+
+/*===========================================
+     NETWORKING
+===========================================*/
+function broadcast(data){
+  Object.values(connections).forEach(c=>{
+    if(c.open) c.send(data);
+  });
+}
+
+function handleData(data,conn){
+  switch(data.type){
+    case"move":
+      if(!otherPlayers[conn.peer]){
+        otherPlayers[conn.peer]={};
+      }
+      // Smooth interpolation
+      let p = otherPlayers[conn.peer];
+      if(p.x && p.y){
+        p.targetX = data.x;
+        p.targetY = data.y;
+      }else{
+        p.x = data.x;
+        p.y = data.y;
+        p.targetX = data.x;
+        p.targetY = data.y;
+      }
+      p.hp = data.hp;
+      break;
+      
+    case"join":
+      otherPlayers[conn.peer]={
+        name:data.name,
+        color:data.color,
+        x:data.x, y:data.y
+      };
+      popupMsg(`✨ ${data.name} đã tham gia!`);
+      break;
+      
+    case"worldSync":
+      resources=data.resources;
+      enemies=data.enemies;
+      break;
+      
+    case"resDestroy":
+      resources=resources.filter(r=>r.id!=data.id);
+      break;
+      
+    case"enemyKill":
+      enemies=enemies.filter(e=>e.id!=data.id);
+      break;
+      
+    case"turretPlace":
+      turrets.push({x:data.x,y:data.y,size:60});
+      break;
+      
+    case"enemyPos":
+      // Guest nhận vị trí enemies từ host
+      if(!isHost){
+        data.enemies.forEach(eData=>{
+          let e = enemies.find(x=>x.id==eData.id);
+          if(e){
+            e.x = eData.x;
+            e.y = eData.y;
+            e.hp = eData.hp;
+            e.atkCD = eData.atkCD;
+          }
+        });
+      }
+      break;
+  }
+}
+
+/*===========================================
+     MENU HANDLERS
+===========================================*/
+document.getElementById("hostBtn").onclick=()=>{
+  let name=document.getElementById("nameInput").value.trim();
+  if(!name){
+    popupMsg("⚠️ Vui lòng nhập tên!");
+    return;
+  }
+  
+  peer=new Peer();
+  
+  peer.on("open",id=>{
+    myId=id;
+    player.name=name;
+    isHost=true;
+    
+    document.getElementById("roomInfo").innerHTML=`
+      <div>✅ Phòng đã tạo thành công!</div>
+      <div class="room-id">${id}</div>
+      <div>📋 Gửi Room ID cho bạn bè</div>
+      <button onclick="startGame()" style="margin-top:15px;width:100%;padding:15px;background:#4caf50;border:none;border-radius:8px;font-size:18px;font-weight:bold;cursor:pointer;">
+        ▶️ BẮT ĐẦU CHƠI
+      </button>
+    `;
+    
+    initWorld();
+  });
+  
+  peer.on("connection",conn=>{
+    connections[conn.peer]=conn;
+    
+    conn.on("open",()=>{
+      conn.send({
+        type:"worldSync",
+        resources:resources,
+        enemies:enemies
+      });
+    });
+    
+    conn.on("data",data=>handleData(data,conn));
+  });
+};
+
+document.getElementById("joinBtn").onclick=()=>{
+  document.getElementById("joinSection").style.display="block";
+};
+
+document.getElementById("connectBtn").onclick=()=>{
+  let name=document.getElementById("nameInput").value.trim();
+  let roomId=document.getElementById("roomInput").value.trim();
+  
+  if(!name || !roomId){
+    popupMsg("⚠️ Vui lòng nhập đầy đủ thông tin!");
+    return;
+  }
+  
+  peer=new Peer();
+  
+  peer.on("open",id=>{
+    myId=id;
+    player.name=name;
+    player.color="#00bcd4";
+    
+    let conn=peer.connect(roomId);
+    connections[roomId]=conn;
+    
+    conn.on("open",()=>{
+      conn.send({
+        type:"join",
+        name:name,
+        color:player.color,
+        x:player.x, y:player.y
+      });
+      
+      popupMsg("✅ Đã kết nối!");
+      setTimeout(startGame,1000);
+    });
+    
+    conn.on("data",data=>handleData(data,conn));
+    
+    conn.on("error",()=>{
+      popupMsg("❌ Không thể kết nối!");
+    });
+  });
+};
+
+function startGame(){
+  document.getElementById("menu").style.display="none";
+  canvas.style.display="block";
+  document.getElementById("hud").style.display="block";
+  document.getElementById("inventory").style.display="grid";
+  document.getElementById("crafting").style.display="grid";
+  document.getElementById("craftBtn").style.display="block";
+  document.getElementById("healthbar").style.display="block";
+  document.getElementById("connectionStatus").style.display="block";
+  document.getElementById("connectionStatus").className="connected";
+  document.getElementById("connectionStatus").innerText="🟢 Đã kết nối";
+  
+  gameStarted=true;
+  loop();
+}
+
+/*===========================================
+     GAME LOOP
+===========================================*/
+function loop(){
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
