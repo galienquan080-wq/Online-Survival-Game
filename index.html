@@ -711,9 +711,24 @@ function handleData(data,conn){
       otherPlayers[conn.peer]={
         name:data.name,
         color:data.color,
-        x:data.x, y:data.y
+        x:data.x, y:data.y,
+        targetX:data.x, targetY:data.y,
+        hp:100
       };
       popupMsg(`✨ ${data.name} đã tham gia!`);
+      
+      // Host gửi lại thông tin cho người mới join
+      if(isHost){
+        conn.send({
+          type:"playerInfo",
+          players: Object.keys(connections).map(id=>({
+            id:id,
+            name:otherPlayers[id]?.name||"Player",
+            x:otherPlayers[id]?.x||MAP_WIDTH/2,
+            y:otherPlayers[id]?.y||MAP_HEIGHT/2
+          }))
+        });
+      }
       break;
       
     case"worldSync":
